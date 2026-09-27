@@ -1,39 +1,8 @@
-const axios = require('axios'); // เรียกใช้งานตัวช่วยยิงเว็บ
-
-// ฟังก์ชันสำหรับเช็กพัสดุ
-async function checkTracking(trackNumber) {
-    try {
-        const response = await axios.post('https://logistics.gaobat.com/hongt-api/bus/inware/track', {
-            code: trackNumber // ตรงนี้คือช่องใส่เลขพัสดุ
-        });
-        
-        // ถ้าสำเร็จ จะแสดงข้อมูลที่ได้ออกมา
-        console.log('ข้อมูลพัสดุ:', response.data);
-        return response.data;
-        
-    } catch (error) {
-        console.error('เกิดข้อผิดพลาด:', error.message);
-    }
-}
-// ตัวอย่างเวลามีคนส่งข้อความหาบอท
-client.on('messageCreate', async (message) => {
-    if (message.content.startsWith('!check ')) {
-        const trackNo = message.content.split(' ')[1]; // ดึงเลขพัสดุหลังคำว่า !check
-        
-        message.reply('กำลังตรวจสอบข้อมูล...');
-        
-        // สั่งเรียกใช้ฟังก์ชันยิง API ที่เราสร้างไว้ข้างบน
-        const result = await checkTracking(trackNo);
-        
-        // ส่งผลลัพธ์กลับไปหาคนพิมพ์ในห้องแชท
-        message.reply(`ผลการเช็กพัสดุ: ${JSON.stringify(result)}`);
-    }
-});
-
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const express = require('express');
 const axios = require('axios');
 
+// 1. ระบบเปิด Port สำหรับรันบน Cloud (Render) ไม่ให้บอทตัดการเชื่อมต่อ
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -45,6 +14,7 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
+// 2. สร้างตัวแปรบอท Discord พร้อม Intents ที่จำเป็น
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -53,6 +23,7 @@ const client = new Client({
     ],
 });
 
+// 3. กำหนดหน้าตาคำสั่ง Slash Command (/track)
 const commands = [
     new SlashCommandBuilder()
         .setName('track')
@@ -64,6 +35,7 @@ const commands = [
         ),
 ].map(command => command.toJSON());
 
+// 4. เมื่อบอทออนไลน์และพร้อมทำงาน จะทำการลงทะเบียนคำสั่ง Slash Command ทันที
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
     const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -78,6 +50,7 @@ client.once('ready', async () => {
     }
 });
 
+// 5. ระบบรองรับเวลาคนพิมพ์ใช้คำสั่ง /track ใน Discord
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
@@ -101,4 +74,5 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
+// 6. ล็อกอินเข้าบอทด้วย Token จาก Environment Variables ของ Render
 client.login(process.env.DISCORD_TOKEN);
