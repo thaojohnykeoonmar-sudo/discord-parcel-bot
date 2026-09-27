@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const express = require('express');
+const axios = require('axios'); // ใช้สำหรับดึงข้อมูลจากเว็บ
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,7 +24,7 @@ const client = new Client({
 const commands = [
     new SlashCommandBuilder()
         .setName('track')
-        .setDescription('ตรวจสอบสถานะพัสดุ Gaobat')
+        .setDescription('เช็กสถานะพัสดุ Gaobat และแสดงผลในแชท')
         .addStringOption(option =>
             option.setName('code')
                 .setDescription('ใส่หมายเลขพัสดุ')
@@ -50,7 +51,23 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.commandName === 'track') {
         const trackNo = interaction.options.getString('code');
-        await interaction.reply(`🔍 กำลังตรวจสอบพัสดุหมายเลข: **${trackNo}**...\n📦 คลิกเพื่อตรวจสอบสถานะ: https://logistics.gaobat.com/hongtwap/#/track?code=${trackNo}`);
+        await interaction.deferReply(); // ให้บอทขึ้นสถานะกำลังคิด เพื่อรอโหลดข้อมูล
+
+        try {
+            // ดึงข้อมูลจากระบบของ Gaobat
+            const response = await axios.get(`https://logistics.gaobat.com/api/track?code=${trackNo}`);
+            const data = response.data;
+
+            // ตรวจสอบว่ามีข้อมูลสถานะส่งกลับมาไหม
+            if (data && data.status) {
+                await interaction.editReply(`📦 ผลการตรวจสอบพัสดุ: **${trackNo}**\n📍 สถานะ: **${data.status}**\n🔗 ดูเพิ่มเติม: https://logistics.gaobat.com/hongtwap/#/track?code=${trackNo}`);
+            } else {
+                await interaction.editReply(`📦 พัสดุหมายเลข: **${trackNo}**\n⚠️ ไม่พบข้อมูลสถานะ หรือสามารถตรวจสอบได้ที่ลิงก์นี้: https://logistics.gaobat.com/hongtwap/#/track?code=${trackNo}`);
+            }
+        } catch (error) {
+            // หากระบบ API ดึงตรงๆ ไม่ได้ จะแสดงลิงก์หลักให้กดเช็ก
+            await interaction.editReply(`🔍 ตรวจสอบพัสดุหมายเลข: **${trackNo}**\n🔗 คลิกเพื่อดูสถานะ: https://logistics.gaobat.com/hongtwap/#/track?code=${trackNo}`);
+        }
     }
 });
 
