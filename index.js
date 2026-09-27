@@ -1,3 +1,21 @@
+const axios = require('axios'); // เรียกใช้งานตัวช่วยยิงเว็บ
+
+// ฟังก์ชันสำหรับเช็กพัสดุ
+async function checkTracking(trackNumber) {
+    try {
+        const response = await axios.post('https://logistics.gaobat.com/hongt-api/bus/inware/track', {
+            code: trackNumber // ตรงนี้คือช่องใส่เลขพัสดุ
+        });
+        
+        // ถ้าสำเร็จ จะแสดงข้อมูลที่ได้ออกมา
+        console.log('ข้อมูลพัสดุ:', response.data);
+        return response.data;
+        
+    } catch (error) {
+        console.error('เกิดข้อผิดพลาด:', error.message);
+    }
+}
+
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const express = require('express');
 const axios = require('axios');
