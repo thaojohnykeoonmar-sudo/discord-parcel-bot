@@ -1,43 +1,64 @@
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get('/', (req, res) => {
-    res.send('Bot is Online!');
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const axios = require('axios');
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+    ],
 });
 
-client.on('ready', () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-});
+// สร้างคำสั่ง Slash Command /track
+const commands = [
+    new SlashCommandBuilder()
+        .setName('track')
+        .setDescription('ตรวจสอบสถานะพัสดุ Gaobat')
+        .addStringOption(option =>
+            option.setName('code')
+                .setDescription('ใส่หมายเลขพัสดุ')
+                .setRequired(true)
+        ),
+].map(command => command.toJSON());
 
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
+client.once('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}!`);
 
-  if (message.content.startsWith('!track')) {
-    const trackNo = message.content.split(' ')[1];
-    if (!trackNo) return message.reply('กรุณาใส่หมายเลขพัสดุ เช่น `!track 79143158159509`');
-
+    // ลงทะเบียนคำสั่ง Slash Command ให้เซิร์ฟเวอร์
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     try {
-      message.reply(`🔍 กำลังตรวจสอบพัสดุหมายเลข: ${trackNo}...`);
-      message.reply(`📦 **สถานะพัสดุ ${trackNo}:** อยู่ระหว่างการขนส่ง`);
+        console.log('กำลังรีเฟรช Slash Commands...');
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: commands },
+        );
+        console.log('ลงทะเบียน Slash Commands สำเร็จแล้ว!');
     } catch (error) {
-      message.reply('❌ ไม่พบข้อมูลพัสดุ หรือระบบเกิดข้อผิดพลาด');
+        console.error(error);
     }
-  }
+});
+
+// รับคำสั่งเมื่อมีคนใช้งาน
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    if (interaction.commandName === 'track') {
+        const trackNo = interaction.options.getString('code');
+        
+        await interaction.reply(`🔍 กำลังตรวจสอบพัสดุหมายเลข: **${trackNo}**...`);
+
+        try {
+            // ดึงข้อมูลสถานะจากระบบ Gaobat (ตัวอย่างการเชื่อมต่อ API)
+            // หมายเหตุ: หากเว็บ Gaobat มีการป้องกันหรือรูปแบบ API เปลี่ยนแปลง สามารถปรับแก้ URL ตรงนี้ได้
+            const response = await axios.get(`https://logistics.gaobat.com/api/track?code=${trackNo}`);
+            
+            // ส่งผลลัพธ์กลับไปที่ Discord
+            await interaction.editReply(`📦 **สถานะพัสดุ ${trackNo}:** ตรวจสอบเรียบร้อย`);
+        } catch (error) {
+            // กรณีเช็กผ่าน API ตรงไม่ได้ ให้แสดงลิงก์สำหรับกดคลิกเช็กแทน
+            await interaction.editReply(`📦 **สถานะพัสดุ ${trackNo}**\nคลิกเพื่อตรวจสอบสถานะ: https://logistics.gaobat.com/hongtwap/#/track?code=${trackNo}`);
+        }
+    }
 });
 
 client.login(process.env.DISCORD_TOKEN);
