@@ -15,6 +15,20 @@ async function checkTracking(trackNumber) {
         console.error('เกิดข้อผิดพลาด:', error.message);
     }
 }
+// ตัวอย่างเวลามีคนส่งข้อความหาบอท
+client.on('messageCreate', async (message) => {
+    if (message.content.startsWith('!check ')) {
+        const trackNo = message.content.split(' ')[1]; // ดึงเลขพัสดุหลังคำว่า !check
+        
+        message.reply('กำลังตรวจสอบข้อมูล...');
+        
+        // สั่งเรียกใช้ฟังก์ชันยิง API ที่เราสร้างไว้ข้างบน
+        const result = await checkTracking(trackNo);
+        
+        // ส่งผลลัพธ์กลับไปหาคนพิมพ์ในห้องแชท
+        message.reply(`ผลการเช็กพัสดุ: ${JSON.stringify(result)}`);
+    }
+});
 
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const express = require('express');
